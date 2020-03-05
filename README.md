@@ -1,5 +1,5 @@
 # F1APP
-Spark Scala code to compute the average of F1 Driver
+Spark Scala code to compute the average lap time of F1 Driver.
 Place the Input file in below Path (file name :input)
 /home/hduser/sparkdata/input
 Output file dir will be generated in the below path
