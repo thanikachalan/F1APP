@@ -13,15 +13,33 @@ import scala.io.Source.fromFile
 object F1Batch {
   
   val properties: Properties = new Properties()
-   /** A function that splits a line of input into (name, laptime) tuples. */
-  def parseLine(line: String) = {
+  val log = Logger.getLogger("F1Batch") 
+  
+  /** function to read input file */
+  def extractInput(sc:SparkContext) ={
+    try{
+       val lines = sc.textFile(properties.getProperty("spark.f1app.input"))
+       lines
+    }catch {
+      case ex: FileNotFoundException => {
+        log.error("InputFile  not found")
+        throw ex
+      }
+    }
+  }
+  
+   /** function that splits each line of the input into (name, laptime) tuples. */
+  def parseLine(line: String) = {    
+    if(line.length() >0){
       // Split by commas
       val fields = line.split(",")
       val name = fields(0)
       val laptime = fields(1).toDouble
       (name, laptime)
-  }
-  
+    }else{
+      throw new Exception("Input Data Not Available")
+    }
+  }  
   
    /** A function that compute the average laptime */
   def computeAverage(rdd:RDD[(String,Double)]) = {
@@ -37,22 +55,39 @@ object F1Batch {
   }
   
   /** Main function to compute the average */
-  def main(args: Array[String]) {   
-    
-    val log = Logger.getLogger("F1Batch")   
-    
+  def main(args: Array[String]) {  
+    try{
+    loadProperies()    
     // Create a SparkContext using every core of the local machine
-    val sc = new SparkContext("local[*]", "F1Batch")
-    
+    val sc = new SparkContext(properties.getProperty("spark.f1app.mode"), "F1Batch")
+   
      //Code for the ETL
     log.info("ETL Started--")    
-    val lines = sc.textFile("file:/home/hduser/sparkdata/input")   
+    val lines = extractInput(sc)
     val rdd = lines.map(parseLine)
     val average = computeAverage(rdd)
-    loadData(average,"file:/home/hduser/sparkdata/output")
+    loadData(average,properties.getProperty("spark.f1app.output"))
     log.info("ETL Completed--")
+    }catch {
+      case unknown: Exception => {
+        log.error(s"Unknown exception: $unknown")
+        throw unknown
+      }
+    }
     
   }
+  
+  def loadProperies()={    
+    val automationPropertiesFileURL = getClass.getResource("/F1App.conf")  
+    if (automationPropertiesFileURL != null) {
+       val source = Source.fromURL(automationPropertiesFileURL)    
+       properties.load(source.bufferedReader())
+    }else {   
+       throw new FileNotFoundException("Properties file cannot be loaded")
+    }
+  }
+   
+      
   
     
 
